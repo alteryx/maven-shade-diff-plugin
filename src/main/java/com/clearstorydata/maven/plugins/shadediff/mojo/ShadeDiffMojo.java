@@ -1,4 +1,4 @@
-package com.clearstorydata.maven;
+package com.clearstorydata.maven.plugins.shadediff.mojo;
 
 /*
  * Copyright 2001-2005 The Apache Software Foundation.
@@ -18,11 +18,10 @@ package com.clearstorydata.maven;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
-
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.plugins.shade.mojo.ArtifactSet;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -34,9 +33,12 @@ import java.io.IOException;
  * @deprecated Don't use!
  */
 @Mojo( name = "touch", defaultPhase = LifecyclePhase.PROCESS_SOURCES )
-public class MyMojo
-    extends AbstractMojo
+public class ShadeDiffMojo extends AbstractMojo
 {
+
+    @Parameter
+    private ArtifactSet artifactSet;
+
     /**
      * Location of the file.
      */
