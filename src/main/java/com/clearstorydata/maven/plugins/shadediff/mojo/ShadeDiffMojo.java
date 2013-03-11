@@ -29,10 +29,7 @@ import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import com.google.common.base.Joiner;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -87,7 +84,7 @@ public class ShadeDiffMojo extends AbstractMojo {
   private File outputDirectory;
 
   @Parameter
-  private List<ShadedJarExclusion> excludeShadedJars;
+  private ShadedJarExclusion[] excludeShadedJars;
 
   private static String getGroupArtifactType(Artifact a) {
     return a.getGroupId() + ":" + a.getArtifactId() + ":" + a.getType();
@@ -111,140 +108,95 @@ public class ShadeDiffMojo extends AbstractMojo {
   public void execute()
     throws MojoExecutionException {
 
-    Plugin shadePlugin = lookupPlugin("org.apache.maven.plugins:maven-shade-plugin");
-    if (shadePlugin == null) {
-      throw new MojoExecutionException("maven-shade-plugin not found");
-    }
+    try {
 
-    Map<String, String> groupArtifactTypeToVersion = new HashMap<String, String>();
-
-    for (Artifact artifact : project.getArtifacts()) {
-      getLog().info("dependency: " + artifact.getId());
-      groupArtifactTypeToVersion.put(getGroupArtifactType(artifact), artifact.getVersion());
-    }
-
-    getLog().info("excluded shaded jars: " + excludeShadedJars.size());
-
-    List<String> excludes = new ArrayList<String>();
-
-    for (ShadedJarExclusion e : excludeShadedJars) {
-      getLog().info("groupId=" + e.getGroupId() + ", " +
-        "artifactId=" + e.getArtifactId() + ", " +
-        "version=" + e.getVersion() + ", " +
-        "classifer=" + e.getClassifier());
-      Artifact pomArtifact = this.factory.createArtifactWithClassifier(
-        e.getGroupId(), e.getArtifactId(), e.getVersion(),
-        "jar", e.getClassifier());
-
-      ArtifactResolutionRequest request = new ArtifactResolutionRequest();
-      request.setArtifact(pomArtifact);
-      request.setRemoteRepositories(remoteRepositories);
-      request.setLocalRepository(localRepository);
-      ArtifactResolutionResult result = artifactResolver.resolve(request);
-      for (Exception ex : result.getExceptions()) {
-        getLog().error(ex);
+      Plugin shadePlugin = lookupPlugin("org.apache.maven.plugins:maven-shade-plugin");
+      if (shadePlugin == null) {
+        throw new MojoExecutionException("maven-shade-plugin not found");
       }
-      if (result.hasExceptions()) {
-        throw new MojoExecutionException("Artifact resolution failed");
+
+      Map<String, String> groupArtifactTypeToVersion = new HashMap<String, String>();
+
+      for (Artifact artifact : project.getArtifacts()) {
+        getLog().info("dependency: " + artifact.getId());
+        groupArtifactTypeToVersion.put(getGroupArtifactType(artifact), artifact.getVersion());
       }
-      getLog().info("Resolution nodes: " + result.getArtifactResolutionNodes().size());
-      getLog().info("Result artifacts: " + result.getArtifacts().size());
-      for (Artifact a : result.getArtifacts()) {
-        getLog().info("Artifact file: " + a.getFile());
-        ZipFile zip;
-        try {
-          zip = new ZipFile(a.getFile().getPath());
-        } catch (IOException ex) {
-          throw new MojoExecutionException("Could not open zip file " + a.getFile().getPath(),
-            ex);
+
+      getLog().info("excluded shaded jars: " + excludeShadedJars.length);
+
+      List<String> excludes = new ArrayList<String>();
+
+      for (ShadedJarExclusion e : excludeShadedJars) {
+        getLog().info("groupId=" + e.getGroupId() + ", " +
+          "artifactId=" + e.getArtifactId() + ", " +
+          "version=" + e.getVersion() + ", " +
+          "classifer=" + e.getClassifier());
+        Artifact pomArtifact = this.factory.createArtifactWithClassifier(
+          e.getGroupId(), e.getArtifactId(), e.getVersion(),
+          "jar", e.getClassifier());
+
+        ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+        request.setArtifact(pomArtifact);
+        request.setRemoteRepositories(remoteRepositories);
+        request.setLocalRepository(localRepository);
+        ArtifactResolutionResult result = artifactResolver.resolve(request);
+        for (Exception ex : result.getExceptions()) {
+          getLog().error(ex);
         }
-        // ZipEntry entry = zip.getEntry("META-INF/maven-shade-included-artifacts.list");
-        // if (entry != null) {
-        for (Enumeration list = zip.entries(); list.hasMoreElements(); ) {
-          ZipEntry entry = (ZipEntry) list.nextElement();
-          String entryName = entry.getName();
-          if (entryName.startsWith("META-INF/") && entryName.endsWith("/pom.properties")) {
-            Properties properties = new Properties();
-            try {
-              InputStream inputStream = zip.getInputStream(entry);
-              properties.load(inputStream);
-              inputStream.close();
-            } catch (IOException ex) {
-              throw new MojoExecutionException("Could not read entry: " + entryName);
-            }
-            if (false) {
-              getLog().info("Shaded jar dependency: " +
-                "groupId=" + properties.getProperty("groupId") + ", " +
-                "artifactId=" + properties.getProperty("artifactId") + ", " +
-                "version=" + properties.getProperty("version") + ", " +
-                "classifier=" + properties.getProperty("classifer") + ", " +
-                "type=" + properties.getProperty("type"));
-            }
-            String artifactType = properties.getProperty("type");
-            Artifact shadedJarDep = factory.createArtifactWithClassifier(
-              properties.getProperty("groupId"),
-              properties.getProperty("artifactId"),
-              properties.getProperty("version"),
-              artifactType == null ? "jar" : artifactType,
-              properties.getProperty("classifier"));
-            String groupArtifactType = getGroupArtifactType(shadedJarDep);
-            String projectDepVersion = groupArtifactTypeToVersion.get(groupArtifactType);
-            getLog().info("shaded jar dep: " + shadedJarDep.getId() + ", " +
-              "version in shaded jar=" + shadedJarDep.getVersion() + ", " +
-              "version in project=" + projectDepVersion +
-              (shadedJarDep.getVersion().equals(projectDepVersion) ? ", EXCLUDING!" : ""));
-            if (projectDepVersion != null) {
+        if (result.hasExceptions()) {
+          throw new MojoExecutionException("Artifact resolution failed");
+        }
+        getLog().info("Resolution nodes: " + result.getArtifactResolutionNodes().size());
+        getLog().info("Result artifacts: " + result.getArtifacts().size());
+        for (Artifact a : result.getArtifacts()) {
+          getLog().info("Artifact file: " + a.getFile());
+          ZipFile zip = new ZipFile(a.getFile().getPath());
+          ZipEntry entry = zip.getEntry("META-INF/maven-shade-included-artifacts.list");
+          if (entry != null) {
+            BufferedReader reader = new BufferedReader(
+              new InputStreamReader(zip.getInputStream(entry)));
+            String line;
+            while ((line = reader.readLine()) != null) {
+              String[] items = line.split(":");
+              if (items.length < 4 || items.length > 5) {
+                getLog().error("Invalid full artifact ID line: " + line + ", skipping");
+                continue;
+              }
+              String groupId = items[0];
+              String artifactId = items[1];
+              String type = items[2];
+              String classifier = items.length == 5 ? items[3] : "";
+              String version = items[items.length - 1];
+              Artifact shadedJarDep = factory.createArtifactWithClassifier(
+                groupId, artifactId, version, type, classifier);
+              String groupArtifactType = getGroupArtifactType(shadedJarDep);
+              String projectDepVersion = groupArtifactTypeToVersion.get(groupArtifactType);
+              getLog().info("shaded jar dep: " + shadedJarDep.getId() + ", " +
+                "version in shaded jar=" + shadedJarDep.getVersion() + ", " +
+                "version in project=" + projectDepVersion +
+                (shadedJarDep.getVersion().equals(projectDepVersion) ? ", EXCLUDING!" : ""));
+              if (projectDepVersion != null) {
 
-              if (shadedJarDep.getVersion().equals(projectDepVersion)) {
-                // Add exclusion
-//                Xpp3Dom config = (Xpp3Dom) shadePlugin.getConfiguration();
-//                Xpp3Dom exclude = new Xpp3Dom("exclude");
-//                getLog().info(config.toString());
-//                exclude.setValue(
-                String exclude =
-                  shadedJarDep.getGroupId() + ":" + shadedJarDep.getArtifactId() + ":*";
-
-                excludes.add(exclude);
-//                config.getChild("artifactSet").getChild("excludes").addChild(exclude);
+                if (shadedJarDep.getVersion().equals(projectDepVersion)) {
+                  String exclude =
+                    shadedJarDep.getGroupId() + ":" + shadedJarDep.getArtifactId() + ":*";
+                  excludes.add(exclude);
+                }
               }
             }
-
           }
         }
       }
-
-
-    }
-
-    if (!excludes.isEmpty()) {
-      String joinedExcludes = Joiner.on(",").join(excludes);
-      getLog().debug("Excludes: " + joinedExcludes);
-      project.getProperties().setProperty("maven.shade.plugin.additionalExcludes", joinedExcludes);
-    }
-
-    File f = outputDirectory;
-
-    if (!f.exists()) {
-      f.mkdirs();
-    }
-
-    File touch = new File(f, "touch.txt");
-
-    FileWriter w = null;
-    try {
-      w = new FileWriter(touch);
-
-      w.write("touch.txt");
-    } catch (IOException e) {
-      throw new MojoExecutionException("Error creating file " + touch, e);
-    } finally {
-      if (w != null) {
-        try {
-          w.close();
-        } catch (IOException e) {
-          // ignore
-        }
+      if (!excludes.isEmpty()) {
+        String joinedExcludes = Joiner.on(",").join(excludes);
+        getLog().debug("Excludes: " + joinedExcludes);
+        project.getProperties().setProperty("maven.shade.plugin.additionalExcludes",
+          joinedExcludes);
       }
+    } catch (IOException ex) {
+      getLog().error(ex);
+      throw new MojoExecutionException("IOException", ex);
     }
+
   }
 }
