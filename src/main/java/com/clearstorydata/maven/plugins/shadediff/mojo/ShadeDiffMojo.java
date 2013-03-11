@@ -135,24 +135,9 @@ public class ShadeDiffMojo extends AbstractMojo {
       Set<String> excludes = new TreeSet<String>();
 
       for (ShadedJarExclusion excludedShadedJar : excludeShadedJars) {
-        Artifact pomArtifact = this.factory.createArtifactWithClassifier(
-          excludedShadedJar.getGroupId(), excludedShadedJar.getArtifactId(),
-          excludedShadedJar.getVersion(), "jar", excludedShadedJar.getClassifier());
-
-        ArtifactResolutionRequest request = new ArtifactResolutionRequest();
-        request.setArtifact(pomArtifact);
-        request.setRemoteRepositories(remoteRepositories);
-        request.setLocalRepository(localRepository);
-        ArtifactResolutionResult result = artifactResolver.resolve(request);
-        for (Exception ex : result.getExceptions()) {
-          getLog().error(ex);
-        }
-        if (result.hasExceptions()) {
-          throw new MojoExecutionException("Artifact resolution failed");
-        }
-
-        for (Artifact a : result.getArtifacts()) {
-          ZipFile zip = new ZipFile(a.getFile().getPath());
+        ArtifactResolutionResult resolutionResult = resolveShadedJarToExclude(excludedShadedJar);
+        for (Artifact excludedShadedJarArtifact : resolutionResult.getArtifacts()) {
+          ZipFile zip = new ZipFile(excludedShadedJarArtifact.getFile().getPath());
           ZipEntry entry = zip.getEntry(SHADED_JAR_CONTENTS_ENTRY);
           if (entry != null) {
             BufferedReader reader = new BufferedReader(
@@ -161,7 +146,8 @@ public class ShadeDiffMojo extends AbstractMojo {
             while ((line = reader.readLine()) != null) {
               String[] items = line.split(":");
               if (items.length < 4 || items.length > 5) {
-                getLog().warn("Invalid full artifact ID line from " + a.getId() + "'s list of " +
+                getLog().warn("Invalid full artifact ID line from " +
+                  excludedShadedJarArtifact.getId() + "'s list of " +
                   "included jars, skipping: " + line);
                 continue;
               }
@@ -178,13 +164,16 @@ public class ShadeDiffMojo extends AbstractMojo {
                   shadedJarDep.getVersion().equals(projectDepVersion)) {
                 String exclude =
                   shadedJarDep.getGroupId() + ":" + shadedJarDep.getArtifactId() + ":*";
-                excludes.add(exclude);
-                getLog().info("Excluding from shaded jar: " + exclude);
+                if (!excludes.contains(exclude)) {
+                  excludes.add(exclude);
+                  getLog().info("Excluding from shaded jar: " + exclude + " (already included in " +
+                    excludedShadedJarArtifact.getId() + ")");
+                }
               }
             }
           } else {
             getLog().error("No contents entry " + SHADED_JAR_CONTENTS_ENTRY + " found in " +
-              a.getFile().getPath());
+              excludedShadedJarArtifact.getFile().getPath());
           }
         }
       }
@@ -198,5 +187,25 @@ public class ShadeDiffMojo extends AbstractMojo {
       throw new MojoExecutionException("IOException", ex);
     }
 
+  }
+
+  private ArtifactResolutionResult resolveShadedJarToExclude(ShadedJarExclusion excludedShadedJar)
+      throws MojoExecutionException {
+    Artifact excludedShadedJarArtifact = this.factory.createArtifactWithClassifier(
+      excludedShadedJar.getGroupId(), excludedShadedJar.getArtifactId(),
+      excludedShadedJar.getVersion(), "jar", excludedShadedJar.getClassifier());
+
+    ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+    request.setArtifact(excludedShadedJarArtifact);
+    request.setRemoteRepositories(remoteRepositories);
+    request.setLocalRepository(localRepository);
+    ArtifactResolutionResult result = artifactResolver.resolve(request);
+    for (Exception ex : result.getExceptions()) {
+      getLog().error(ex);
+    }
+    if (result.hasExceptions()) {
+      throw new MojoExecutionException("Artifact resolution failed");
+    }
+    return result;
   }
 }
