@@ -127,6 +127,12 @@ public class ShadeDiffMojo extends AbstractMojo {
         return;
       }
 
+      if (excludeShadedJars == null) {
+        getLog().info("No shaded jars specified to exclude the contents of, skipping " +
+          "shade-diff execution");
+        return;
+      }
+
       Map<String, String> idToVersion = new HashMap<String, String>();
 
       for (Artifact artifact : project.getArtifacts()) {
