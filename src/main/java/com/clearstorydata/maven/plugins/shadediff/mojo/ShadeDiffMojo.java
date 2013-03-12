@@ -186,8 +186,11 @@ public class ShadeDiffMojo extends AbstractMojo {
               }
             }
           } else {
-            getLog().error("No contents entry " + SHADED_JAR_CONTENTS_ENTRY + " found in " +
-              excludedShadedJarArtifact.getFile().getPath());
+            // We make this a build failure, because this indicates that the shaded jar was not
+            // built correctly.
+            throw new MojoExecutionException(
+              "No contents entry " + SHADED_JAR_CONTENTS_ENTRY + " found in " +
+                excludedShadedJarArtifact.getFile().getPath());
           }
         }
       }
