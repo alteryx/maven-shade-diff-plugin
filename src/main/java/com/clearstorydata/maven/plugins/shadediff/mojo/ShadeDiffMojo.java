@@ -123,7 +123,8 @@ public class ShadeDiffMojo extends AbstractMojo {
 
       Plugin shadePlugin = lookupPlugin("org.apache.maven.plugins:maven-shade-plugin");
       if (shadePlugin == null) {
-        throw new MojoExecutionException("maven-shade-plugin not found");
+        getLog().info("maven-shade-plugin not found, skipping shade-diff execution");
+        return;
       }
 
       Map<String, String> idToVersion = new HashMap<String, String>();
