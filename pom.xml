@@ -3,7 +3,7 @@
 
   <groupId>com.clearstorydata.maven</groupId>
   <artifactId>shade-diff-plugin</artifactId>
-  <version>1.2-SNAPSHOT</version>
+  <version>1.2</version>
   <packaging>maven-plugin</packaging>
 
   <name>shade-diff-plugin Maven Plugin</name>
