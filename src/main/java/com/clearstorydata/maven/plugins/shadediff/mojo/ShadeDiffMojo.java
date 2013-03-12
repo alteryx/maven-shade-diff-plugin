@@ -136,6 +136,13 @@ public class ShadeDiffMojo extends AbstractMojo {
 
       for (ShadedJarExclusion excludedShadedJar : excludeShadedJars) {
         ArtifactResolutionResult resolutionResult = resolveShadedJarToExclude(excludedShadedJar);
+        if (resolutionResult.getArtifacts().isEmpty()) {
+          throw new MojoExecutionException("Could not resolve shaded jar artifact to exclude: " +
+            "groupId=" + excludedShadedJar.getGroupId() + ", " +
+            "artifactId=" + excludedShadedJar.getArtifactId() + ", " +
+            "version=" + excludedShadedJar.getVersion() + ", " +
+            "classifier=" + excludedShadedJar.getClassifier());
+        }
         for (Artifact excludedShadedJarArtifact : resolutionResult.getArtifacts()) {
           ZipFile zip = new ZipFile(excludedShadedJarArtifact.getFile().getPath());
           ZipEntry entry = zip.getEntry(SHADED_JAR_CONTENTS_ENTRY);
@@ -193,7 +200,8 @@ public class ShadeDiffMojo extends AbstractMojo {
       throws MojoExecutionException {
     Artifact excludedShadedJarArtifact = this.factory.createArtifactWithClassifier(
       excludedShadedJar.getGroupId(), excludedShadedJar.getArtifactId(),
-      excludedShadedJar.getVersion(), "jar", excludedShadedJar.getClassifier());
+      excludedShadedJar.getVersion(), "jar",
+      excludedShadedJar.getClassifier() == null ? "" : excludedShadedJar.getClassifier());
 
     ArtifactResolutionRequest request = new ArtifactResolutionRequest();
     request.setArtifact(excludedShadedJarArtifact);
