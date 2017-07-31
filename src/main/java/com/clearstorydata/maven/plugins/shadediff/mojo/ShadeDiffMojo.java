@@ -22,7 +22,7 @@ import org.apache.maven.artifact.factory.ArtifactFactory;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
 import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
-import org.apache.maven.artifact.resolver.ArtifactResolver;
+import org.apache.maven.repository.RepositorySystem;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -64,7 +64,7 @@ public class ShadeDiffMojo extends AbstractMojo {
    * Used to look up Artifacts in the remote repository.
    */
   @Component
-  protected ArtifactResolver artifactResolver;
+  protected RepositorySystem repositorySystem;
 
   /**
    * List of Remote Repositories used by the resolver
@@ -217,7 +217,7 @@ public class ShadeDiffMojo extends AbstractMojo {
     request.setArtifact(excludedShadedJarArtifact);
     request.setRemoteRepositories(remoteRepositories);
     request.setLocalRepository(localRepository);
-    ArtifactResolutionResult result = artifactResolver.resolve(request);
+    ArtifactResolutionResult result = repositorySystem.resolve(request);
     for (Exception ex : result.getExceptions()) {
       getLog().error(ex);
     }
