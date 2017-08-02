@@ -11,9 +11,9 @@
   <url>http://github.com/mbautin/maven-shade-diff-plugin</url>
 
   <scm>
-    <connection>scm:git:git://github.com/mbautin/maven-shade-diff-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:mbautin/maven-shade-diff-plugin.git</developerConnection>
-    <url>http://github.com/mbautin/maven-shade-diff-plugin</url>
+    <connection>scm:git:git://github.com/clearstorydata/maven-shade-diff-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:clearstorydata/maven-shade-diff-plugin.git</developerConnection>
+    <url>http://github.com/clearstorydata/maven-shade-diff-plugin</url>
     <tag>HEAD</tag>
   </scm>
 
