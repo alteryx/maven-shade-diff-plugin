@@ -43,7 +43,7 @@ import java.util.zip.ZipFile;
  * Downloads the specified shaded jar and adds all artifacts included into that jar
  * with versions different from those required by the current project to shade plugin
  * exclusions.
- * <p/>
+ * 
  * Technique used for resolving artifact:
  * http://stackoverflow.com/questions/1440224/how-can-i-download-maven-artifacts-within-a-plugin
  */
